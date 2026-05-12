@@ -1,24 +1,24 @@
 # geffenlab-bombcell
 
-Reads a folder of [Phy](https://github.com/cortex-lab/phy) data, as from the [geffenlab-ephys-pipeline](https://github.com/benjamin-heasly/geffenlab-ephys-pipeline) and [geffenlab-ecephys-phy-export](https://github.com/benjamin-heasly/geffenlab-ecephys-phy-export) step.
+This repository defines a processing step that is part of the [geffenlab-ephys-pipeline](https://github.com/geffenlab/geffenlab-ephys-pipeline).
 
-Runs [Bombcell](https://github.com/Julie-Fabre/bombcell/tree/main/py_bombcell) to create diagnostic plots and quality control metrics.
+This "bombcell" step reads a folder of [Phy](https://github.com/cortex-lab/phy) data, as produced by [Kilosort4](https://github.com/MouseLand/Kilosort), and runs[Bombcell](https://github.com/Julie-Fabre/bombcell/tree/main/py_bombcell) to create diagnostic plots and quality control metrics.  It contains a Python wrapper to facilitate finding Kilosort results across sessions, and invoking Bombcell for each session.
 
-# Building Docker image versions
+# Lifecycle of a processing step
 
-This repo is configured to automatically build and publish a new Docker image version, each time a [repo tag](https://git-scm.com/book/en/v2/Git-Basics-Tagging) is pushed to GitHub.
+This repository defines the processing step's [environment](./environment/), including dependencies and custom Python [code](./code/).  These can be edited, committed, and pushed to this repository on GitHub.
 
-## Published versions
+This repository is the source of truth for the step's environment and code, but we don't run the code directly from here.  Instead we package the environment and code from this repository into a [Docker image](https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-an-image/).  This makes the step portable and reproducible.
 
-The published images are located in the GitHub Container Registry as [geffenlab-bombcell](https://github.com/benjamin-heasly/geffenlab-bombcell/pkgs/container/geffenlab-bombcell).  You can find the latest published version at this page.
+The [geffenlab-ephys-pipeline](https://github.com/geffenlab/geffenlab-ephys-pipeline) defines pipelines in terms of our Docker images.  [Here's an example](https://github.com/geffenlab/geffenlab-ephys-pipeline/blob/master/proceed/as-nidq.yaml#L41) of where a pipeline refers to one of our Docker images.
 
-You can access published images using their full names.  For version `v0.0.4` the full name would be `ghcr.io/benjamin-heasly/bombcell:v0.0.4`.  You can use this name in [Nexflow pipeline configuration](https://github.com/benjamin-heasly/geffenlab-ephys-pipeline/blob/master/pipeline/main.nf#L37) and with Docker commands like:
+## Creating new nersions of the Docker image
 
-```
-docker pull ghcr.io/benjamin-heasly/geffenlab-bombcell:v0.0.4
-```
+This repository is configured to automatically build and publish a new Docker image, each time a [repository tag](https://git-scm.com/book/en/v2/Git-Basics-Tagging) is pushed to GitHub.
 
-## Releasing new versions
+The published images are located in the GitHub Container Registry as [geffenlab-bombcell](https://github.com/benjamin-heasly/geffenlab-bombcell/pkgs/container/geffenlab-bombcell).  You can find the latest and previous versions of the step's Docker image there.
+
+## Example update workflow
 
 Here's a workflow for building and realeasing a new Docker image version.
 
@@ -30,19 +30,30 @@ git commit -a -m "Now with lasers!"
 git push
 ```
 
-Next, create a new repository [tag](https://git-scm.com/book/en/v2/Git-Basics-Tagging), which marks the most recent commit as important, giving it a unique name and description.
+Next, create a new repository [tag](https://git-scm.com/book/en/v2/Git-Basics-Tagging), which marks your commit as important and gives it a unique name and description.  For the unique tag name we use version numbers like `v0.0.5`.
 
 ```
 # Review existing tags and choose the next version number to use.
 git pull --tags
-git tag -l
+git tag --list
 
 # Create the tag for the next version
 git tag -a v0.0.5 -m "Now with lasers!"
 git push --tags
 ```
 
-GitHub should automatically kick off a build and publish workflow for the new tag.
-You can follow the workflow progress at the repo's [Actions](https://github.com/benjamin-heasly/bombcell/actions) page.
+When you `git push --tags`, GitHub will detect your new version and kick off a fresh Docker image build.  The new image will contain the environment and code from this repository, as of your tagged commit.
 
-You can see the workflow code in [build-tag.yml](./.github/workflows/build-tag.yml).
+You can see the code for this automated workflow in this repository at [build-tag.yml](./.github/workflows/build-tag.yml).
+
+You can follow the progress of the Docker image build at the step [Actions](https://github.com/benjamin-heasly/geffenlab-bombcell/actions) page.  When the build completes you should see a new [published version](https://github.com/benjamin-heasly/geffenlab-bombcell/pkgs/container/geffenlab-bombcell) with the version tag you provided, like `v0.0.5`.
+
+## Update your pipeline
+
+When your step's new Docker image is ready you can update your pipeline to refer to the new version.  This means updating the version number in your pipeline YAML, for example [here](https://github.com/geffenlab/geffenlab-ephys-pipeline/blob/master/proceed/as-nidq.yaml#L41).  The next time you run your pipeline it will download the newer Docker image version that you specified, and use that version of the environment and code.
+
+### older verions are still OK
+
+Existing pipelines that refer to older Docker image versions should continue to work as-is, even after you create a new version.  Older Docker images will remain, saved on GitHub, available for use.
+
+This means new image versions are always optional.  You can update your pipelines to use new versions when you're ready.  Different people and different pipelines can use different versions of the same step without interference.
