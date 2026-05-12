@@ -12,7 +12,7 @@ This repository is the source of truth for the step's environment and code, but 
 
 The [geffenlab-ephys-pipeline](https://github.com/geffenlab/geffenlab-ephys-pipeline) defines pipelines in terms of our Docker images.  [Here's an example](https://github.com/geffenlab/geffenlab-ephys-pipeline/blob/master/proceed/as-nidq.yaml#L41) of where a pipeline refers to one of our Docker images.
 
-## Creating new nersions of the Docker image
+## Creating new versions of the Docker image
 
 This repository is configured to automatically build and publish a new Docker image, each time a [repository tag](https://git-scm.com/book/en/v2/Git-Basics-Tagging) is pushed to GitHub.
 
