@@ -1,9 +1,10 @@
 import sys
-from argparse import ArgumentParser
+from argparse import ArgumentParser, BooleanOptionalAction
 from typing import Optional, Sequence
 import logging
 from pathlib import Path
 import json
+from shutil import rmtree
 
 import bombcell as bc
 from bombcell import __version__ as bombcell_version
@@ -76,7 +77,8 @@ def find_probes_and_run_bombcell(
     probe_ids: list[str],
     probe_params_pattern: str,
     bombcell_params_pattern: str,
-    kilosort_version: int
+    kilosort_version: int,
+    remove_existing_outputs: bool
 ):
     """Locate run/probe subdirs wiht Kilsort/Phy results, run Bombcel on each in sequence."""
 
@@ -132,10 +134,13 @@ def find_probes_and_run_bombcell(
             bombcell_params['ephys_sample_rate'] = phy_params['sample_rate']
             bombcell_params['nChannels'] = phy_params['n_channels_dat']
 
-            probe_figures_path = Path(phy_path, "bombcell")
-            probe_figures_path.mkdir(exist_ok=True, parents=True)
+            probe_bombcell_output_path = Path(phy_path, "bombcell")
+            if remove_existing_outputs and probe_bombcell_output_path.exists():
+                logging.warning(f"Removing existing Bombcell outputs for probe {probe_id}: {probe_bombcell_output_path}")
+                rmtree(probe_bombcell_output_path)
+            probe_bombcell_output_path.mkdir(exist_ok=True, parents=True)
             bombcell_params['savePlots'] = True
-            bombcell_params['plotsSaveDir'] = probe_figures_path.as_posix()
+            bombcell_params['plotsSaveDir'] = probe_bombcell_output_path.as_posix()
 
             if bombcell_user_params:
                 logging.info(f"Setting {len(bombcell_user_params)} user-supplied Bombcell params:")
@@ -151,7 +156,7 @@ def find_probes_and_run_bombcell(
             logging.info("Running Bombcell:")
             bc.run_bombcell(
                 phy_path,
-                probe_figures_path,
+                probe_bombcell_output_path,
                 bombcell_params,
                 return_figures=False,
                 save_figures=True
@@ -198,6 +203,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         help="Which version of Kilosort was used? (default: %(default)s)",
         default=4
     )
+    parser.add_argument(
+        "--remove-existing-outputs",
+        action=BooleanOptionalAction,
+        help="Whether or not to remove existing (stale) Bombcell outputs for each probe, before running Bombcell. (default: %(default)s)",
+        default=True
+    )
 
     cli_args = parser.parse_args(argv)
 
@@ -208,7 +219,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             cli_args.probe_ids,
             cli_args.probe_params_pattern,
             cli_args.bombcell_params_pattern,
-            cli_args.kilosort_version
+            cli_args.kilosort_version,
+            cli_args.remove_existing_outputs
         )
     except:
         logging.error("Error running bombcell.", exc_info=True)
